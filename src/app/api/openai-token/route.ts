@@ -1,7 +1,10 @@
 import { NextRequest } from 'next/server'
+import { DEFAULT_MODEL } from '@/lib/models'
 
 export async function POST(req: NextRequest) {
-  const { systemPrompt, ragContent, voice } = await req.json()
+  const { systemPrompt, ragContent, voice, model } = await req.json()
+
+  const selectedModel = model ?? DEFAULT_MODEL
 
   const instructions = [systemPrompt, ragContent]
     .filter(Boolean)
@@ -14,7 +17,7 @@ export async function POST(req: NextRequest) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-realtime-preview-2024-12-17',
+      model: selectedModel,
       voice: voice ?? 'echo',
       instructions,
       input_audio_transcription: { model: 'whisper-1' },
@@ -33,5 +36,6 @@ export async function POST(req: NextRequest) {
   }
 
   const data = await response.json()
-  return Response.json({ token: data.client_secret.value })
+  // Model zurückgeben damit der Hook die WebRTC-URL korrekt bauen kann
+  return Response.json({ token: data.client_secret.value, model: selectedModel })
 }

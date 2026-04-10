@@ -89,6 +89,7 @@ function SessionCard({ session }: { session: SessionWithDetails }) {
             {new Date(session.created_at).toLocaleString('de-DE')}
             {session.agent_name && ` · ${session.agent_name}`}
             {session.voice_id && ` · ${session.voice_id}`}
+            {session.model && ` · ${session.model}`}
             {' · '}
             {session.transcripts.length} Nachrichten
           </p>

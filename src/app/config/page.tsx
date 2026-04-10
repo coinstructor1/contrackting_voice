@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { PROMPT_TEMPLATES, DEFAULT_PROMPT, resolvePrompt } from '@/lib/prompts'
 import { DEFAULT_RAG } from '@/lib/rag-content'
 import { OPENAI_VOICES, DEFAULT_VOICE, DEFAULT_AGENT_NAME } from '@/lib/voices'
+import { OPENAI_REALTIME_MODELS, DEFAULT_MODEL, tierIcon } from '@/lib/models'
 
 type SaveState = 'idle' | 'saved' | 'error'
 type VoiceTab = 'openai' | 'elevenlabs'
@@ -20,6 +21,7 @@ export default function ConfigPage() {
   const [selectedTemplate, setSelectedTemplate] = useState('v1')
   const [agentName, setAgentName] = useState(DEFAULT_AGENT_NAME)
   const [openaiVoice, setOpenaiVoice] = useState(DEFAULT_VOICE)
+  const [openaiModel, setOpenaiModel] = useState(DEFAULT_MODEL)
   const [voiceTab, setVoiceTab] = useState<VoiceTab>('openai')
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -29,10 +31,12 @@ export default function ConfigPage() {
     const savedRag         = localStorage.getItem('ct-rag-content')
     const savedName        = localStorage.getItem('ct-agent-name')
     const savedOpenaiVoice = localStorage.getItem('ct-openai-voice')
+    const savedOpenaiModel = localStorage.getItem('ct-openai-model')
     const savedVariant     = localStorage.getItem('ct-prompt-variant')
     const name = savedName ?? DEFAULT_AGENT_NAME
     if (savedName)        setAgentName(savedName)
     if (savedOpenaiVoice) setOpenaiVoice(savedOpenaiVoice)
+    if (savedOpenaiModel) setOpenaiModel(savedOpenaiModel)
     if (savedVariant)     setSelectedTemplate(savedVariant)
     if (savedRag)         setRagContent(savedRag)
     // Prompt: gespeicherte Version laden, sonst Default mit aufgelöstem Namen
@@ -64,6 +68,7 @@ export default function ConfigPage() {
       localStorage.setItem('ct-rag-content',    ragContent)
       localStorage.setItem('ct-agent-name',     agentName)
       localStorage.setItem('ct-openai-voice',   openaiVoice)
+      localStorage.setItem('ct-openai-model',   openaiModel)
       localStorage.setItem('ct-prompt-variant', selectedTemplate)
       // ct-elevenlabs-voice wird in Phase 4 ergänzt
       setSaveState('saved')
@@ -84,6 +89,7 @@ export default function ConfigPage() {
     localStorage.removeItem('ct-rag-content')
     localStorage.removeItem('ct-agent-name')
     localStorage.removeItem('ct-openai-voice')
+    localStorage.removeItem('ct-openai-model')
     localStorage.removeItem('ct-prompt-variant')
     localStorage.removeItem('ct-elevenlabs-voice')
   }
@@ -196,6 +202,40 @@ export default function ConfigPage() {
             </div>
           )}
         </div>
+      </section>
+
+      {/* OpenAI Model */}
+      <section className="space-y-4 rounded-xl border border-ct-border bg-ct-dark p-6">
+        <div>
+          <h2 className="font-semibold text-white">OpenAI Model</h2>
+          <p className="text-xs text-ct-secondary mt-0.5">
+            Nur Realtime-fähige Modelle – reguläre GPT-Modelle funktionieren hier nicht.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {OPENAI_REALTIME_MODELS.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setOpenaiModel(m.id)}
+              className={`flex items-start gap-3 rounded-lg border px-4 py-3 text-left transition-all ${
+                openaiModel === m.id
+                  ? 'border-ct-primary bg-ct-primary/10 text-white'
+                  : 'border-ct-border text-ct-secondary hover:border-ct-primary/50 hover:text-white'
+              }`}
+            >
+              <span className="text-sm mt-0.5 shrink-0">{tierIcon(m.tier)}</span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{m.label}</p>
+                <p className="text-xs text-ct-label mt-0.5">{m.description}</p>
+                <p className="text-xs text-ct-label/60 mt-0.5 font-mono truncate">{m.id}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-ct-label">
+          ★ beste Qualität · ◆ ausgewogen · ◇ günstig &nbsp;|&nbsp;
+          Aktuell: <span className="text-ct-primary font-medium">{openaiModel}</span>
+        </p>
       </section>
 
       {/* System Prompt */}

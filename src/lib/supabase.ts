@@ -20,6 +20,7 @@ export interface Session {
   voice_id: string | null
   agent_name: string | null
   prompt_variant: string | null
+  model: string | null
 }
 
 export interface Transcript {
@@ -50,6 +51,7 @@ export interface CreateSessionParams {
   voiceId: string | null
   agentName: string
   promptVariant: string
+  model: string | null
 }
 
 // DB helpers
@@ -63,6 +65,7 @@ export async function createSession(params: CreateSessionParams): Promise<Sessio
       voice_id:       params.voiceId,
       agent_name:     params.agentName,
       prompt_variant: params.promptVariant,
+      model:          params.model,
     })
     .select()
     .single()

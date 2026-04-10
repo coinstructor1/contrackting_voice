@@ -10,12 +10,12 @@ export function useOpenAICall({ onTranscript, onError }: OpenAICallCallbacks) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const agentBufferRef = useRef('')
 
-  async function start(systemPrompt: string, ragContent: string, voice?: string): Promise<void> {
+  async function start(systemPrompt: string, ragContent: string, voice?: string, model?: string): Promise<void> {
     // 1. Ephemeral Token vom Server holen
     const tokenRes = await fetch('/api/openai-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ systemPrompt, ragContent, voice }),
+      body: JSON.stringify({ systemPrompt, ragContent, voice, model }),
     })
 
     if (!tokenRes.ok) {
@@ -23,7 +23,7 @@ export function useOpenAICall({ onTranscript, onError }: OpenAICallCallbacks) {
       throw new Error(`Token-Fehler: ${error ?? tokenRes.statusText}`)
     }
 
-    const { token } = await tokenRes.json()
+    const { token, model: resolvedModel } = await tokenRes.json()
 
     // 2. RTCPeerConnection erstellen
     const pc = new RTCPeerConnection()
@@ -91,7 +91,7 @@ export function useOpenAICall({ onTranscript, onError }: OpenAICallCallbacks) {
 
     // 7. Offer an OpenAI schicken
     const sdpRes = await fetch(
-      'https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17',
+      `https://api.openai.com/v1/realtime?model=${resolvedModel}`,
       {
         method: 'POST',
         headers: {

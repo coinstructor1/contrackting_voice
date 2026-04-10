@@ -9,6 +9,7 @@ import { createSession, updateSessionStatus, addTranscript, type Provider } from
 import { DEFAULT_PROMPT } from '@/lib/prompts'
 import { DEFAULT_RAG } from '@/lib/rag-content'
 import { DEFAULT_VOICE, DEFAULT_AGENT_NAME } from '@/lib/voices'
+import { DEFAULT_MODEL } from '@/lib/models'
 import { useOpenAICall } from '@/hooks/useOpenAICall'
 
 type CallStatus = 'idle' | 'connecting' | 'active' | 'ended' | 'error'
@@ -33,6 +34,7 @@ export default function CallPage() {
   const [promptVariant, setPromptVariant] = useState('v1')
   // Provider-spezifische Voices – getrennt gespeichert
   const [openaiVoice, setOpenaiVoice] = useState(DEFAULT_VOICE)
+  const [openaiModel, setOpenaiModel] = useState(DEFAULT_MODEL)
   const [elevenlabsVoice, setElevenlabsVoice] = useState<string | null>(null)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -74,6 +76,8 @@ export default function CallPage() {
     if (savedRag)         setRagContentState(savedRag)
     if (savedName)        setAgentName(savedName)
     if (savedOpenaiVoice) setOpenaiVoice(savedOpenaiVoice)
+    const savedOpenaiModel = localStorage.getItem('ct-openai-model')
+    if (savedOpenaiModel) setOpenaiModel(savedOpenaiModel)
     if (savedElVoice)     setElevenlabsVoice(savedElVoice)
     if (savedVariant)     setPromptVariant(savedVariant)
   }, [])
@@ -120,6 +124,7 @@ export default function CallPage() {
         voiceId:       provider === 'openai' ? openaiVoice : elevenlabsVoice,
         agentName,
         promptVariant,
+        model:         provider === 'openai' ? openaiModel : null,
       })
       sid = session.id
       setSessionId(sid)
@@ -158,7 +163,7 @@ export default function CallPage() {
 
   // ─── OpenAI Realtime ─────────────────────────────────────────────────────
   async function startOpenAICall(_sid: string, prompt: string, rag: string) {
-    await openAICall.start(prompt, rag, openaiVoice)
+    await openAICall.start(prompt, rag, openaiVoice, openaiModel)
   }
 
   // ─── ElevenLabs (Phase 4) ────────────────────────────────────────────────
@@ -223,6 +228,9 @@ export default function CallPage() {
               <span className={elevenlabsVoice === null && provider === 'elevenlabs' ? 'text-yellow-500' : 'text-ct-primary'}>
                 {activeVoiceLabel}
               </span>
+              {provider === 'openai' && (
+                <> · <span className="text-ct-primary">{openaiModel}</span></>
+              )}
             </span>
             <span className={`text-sm font-medium uppercase tracking-wider mt-1 ${statusColor[status]}`}>
               {statusLabel[status]}
