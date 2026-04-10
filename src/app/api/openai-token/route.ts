@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 
 export async function POST(req: NextRequest) {
-  const { systemPrompt, ragContent } = await req.json()
+  const { systemPrompt, ragContent, voice } = await req.json()
 
   const instructions = [systemPrompt, ragContent]
     .filter(Boolean)
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     },
     body: JSON.stringify({
       model: 'gpt-4o-realtime-preview-2024-12-17',
-      voice: 'alloy',
+      voice: voice ?? 'echo',
       instructions,
       input_audio_transcription: { model: 'whisper-1' },
       turn_detection: {

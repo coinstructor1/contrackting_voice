@@ -17,6 +17,9 @@ export interface Session {
   system_prompt: string | null
   rag_content: string | null
   status: SessionStatus
+  voice_id: string | null
+  agent_name: string | null
+  prompt_variant: string | null
 }
 
 export interface Transcript {
@@ -40,15 +43,27 @@ export interface Rating {
   created_at: string
 }
 
-// DB helpers
-export async function createSession(
-  provider: Provider,
-  systemPrompt: string,
+export interface CreateSessionParams {
+  provider: Provider
+  systemPrompt: string
   ragContent: string
-): Promise<Session> {
+  voiceId: string | null
+  agentName: string
+  promptVariant: string
+}
+
+// DB helpers
+export async function createSession(params: CreateSessionParams): Promise<Session> {
   const { data, error } = await supabase
     .from('sessions')
-    .insert({ provider, system_prompt: systemPrompt, rag_content: ragContent })
+    .insert({
+      provider:       params.provider,
+      system_prompt:  params.systemPrompt,
+      rag_content:    params.ragContent,
+      voice_id:       params.voiceId,
+      agent_name:     params.agentName,
+      prompt_variant: params.promptVariant,
+    })
     .select()
     .single()
 

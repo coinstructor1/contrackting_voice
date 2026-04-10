@@ -10,12 +10,12 @@ export function useOpenAICall({ onTranscript, onError }: OpenAICallCallbacks) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const agentBufferRef = useRef('')
 
-  async function start(systemPrompt: string, ragContent: string): Promise<void> {
+  async function start(systemPrompt: string, ragContent: string, voice?: string): Promise<void> {
     // 1. Ephemeral Token vom Server holen
     const tokenRes = await fetch('/api/openai-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ systemPrompt, ragContent }),
+      body: JSON.stringify({ systemPrompt, ragContent, voice }),
     })
 
     if (!tokenRes.ok) {

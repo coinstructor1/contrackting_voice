@@ -79,9 +79,16 @@ function SessionCard({ session }: { session: SessionWithDetails }) {
                 Nicht bewertet
               </span>
             )}
+            {session.prompt_variant && session.prompt_variant !== 'custom' && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded border border-ct-border text-ct-label uppercase">
+                {session.prompt_variant}
+              </span>
+            )}
           </div>
           <p className="text-xs text-ct-secondary mt-1">
             {new Date(session.created_at).toLocaleString('de-DE')}
+            {session.agent_name && ` · ${session.agent_name}`}
+            {session.voice_id && ` · ${session.voice_id}`}
             {' · '}
             {session.transcripts.length} Nachrichten
           </p>

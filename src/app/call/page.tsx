@@ -8,6 +8,7 @@ import ErrorBanner from '@/components/ErrorBanner'
 import { createSession, updateSessionStatus, addTranscript, type Provider } from '@/lib/supabase'
 import { DEFAULT_PROMPT } from '@/lib/prompts'
 import { DEFAULT_RAG } from '@/lib/rag-content'
+import { DEFAULT_VOICE, DEFAULT_AGENT_NAME } from '@/lib/voices'
 import { useOpenAICall } from '@/hooks/useOpenAICall'
 
 type CallStatus = 'idle' | 'connecting' | 'active' | 'ended' | 'error'
@@ -28,6 +29,11 @@ export default function CallPage() {
   const [duration, setDuration] = useState(0)
   const [systemPrompt, setSystemPromptState] = useState(DEFAULT_PROMPT)
   const [ragContent, setRagContentState] = useState(DEFAULT_RAG)
+  const [agentName, setAgentName] = useState(DEFAULT_AGENT_NAME)
+  const [promptVariant, setPromptVariant] = useState('v1')
+  // Provider-spezifische Voices – getrennt gespeichert
+  const [openaiVoice, setOpenaiVoice] = useState(DEFAULT_VOICE)
+  const [elevenlabsVoice, setElevenlabsVoice] = useState<string | null>(null)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const sessionIdRef = useRef<string | null>(null)
@@ -58,10 +64,18 @@ export default function CallPage() {
 
   // Read config from localStorage
   useEffect(() => {
-    const savedPrompt = localStorage.getItem('ct-system-prompt')
-    const savedRag = localStorage.getItem('ct-rag-content')
-    if (savedPrompt) setSystemPromptState(savedPrompt)
-    if (savedRag) setRagContentState(savedRag)
+    const savedPrompt      = localStorage.getItem('ct-system-prompt')
+    const savedRag         = localStorage.getItem('ct-rag-content')
+    const savedName        = localStorage.getItem('ct-agent-name')
+    const savedOpenaiVoice = localStorage.getItem('ct-openai-voice')
+    const savedElVoice     = localStorage.getItem('ct-elevenlabs-voice')
+    const savedVariant     = localStorage.getItem('ct-prompt-variant')
+    if (savedPrompt)      setSystemPromptState(savedPrompt)
+    if (savedRag)         setRagContentState(savedRag)
+    if (savedName)        setAgentName(savedName)
+    if (savedOpenaiVoice) setOpenaiVoice(savedOpenaiVoice)
+    if (savedElVoice)     setElevenlabsVoice(savedElVoice)
+    if (savedVariant)     setPromptVariant(savedVariant)
   }, [])
 
   // Timer
@@ -74,6 +88,12 @@ export default function CallPage() {
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [status])
+
+  // Aktive Voice-Info je nach gewähltem Provider
+  const activeVoiceLabel =
+    provider === 'openai'
+      ? openaiVoice
+      : elevenlabsVoice ?? 'Folgt in Phase 4'
 
   async function handleStartCall() {
     setError(null)
@@ -93,7 +113,14 @@ export default function CallPage() {
     // Supabase Session erstellen
     let sid: string
     try {
-      const session = await createSession(provider, systemPrompt, ragContent)
+      const session = await createSession({
+        provider,
+        systemPrompt,
+        ragContent,
+        voiceId:       provider === 'openai' ? openaiVoice : elevenlabsVoice,
+        agentName,
+        promptVariant,
+      })
       sid = session.id
       setSessionId(sid)
       sessionIdRef.current = sid
@@ -131,7 +158,7 @@ export default function CallPage() {
 
   // ─── OpenAI Realtime ─────────────────────────────────────────────────────
   async function startOpenAICall(_sid: string, prompt: string, rag: string) {
-    await openAICall.start(prompt, rag)
+    await openAICall.start(prompt, rag, openaiVoice)
   }
 
   // ─── ElevenLabs (Phase 4) ────────────────────────────────────────────────
@@ -185,9 +212,19 @@ export default function CallPage() {
       {/* Call Card */}
       {!showRating && (
         <div className="w-full rounded-xl border border-ct-border bg-ct-dark p-8 flex flex-col items-center gap-6">
-          {/* Status */}
+
+          {/* Agent Info */}
           <div className="flex flex-col items-center gap-1">
-            <span className={`text-sm font-medium uppercase tracking-wider ${statusColor[status]}`}>
+            <span className="text-xs font-medium uppercase tracking-[0.15em] text-ct-label">
+              Agent: {agentName}
+            </span>
+            <span className="text-xs text-ct-label">
+              {provider === 'openai' ? 'OpenAI' : 'ElevenLabs'} · Voice:{' '}
+              <span className={elevenlabsVoice === null && provider === 'elevenlabs' ? 'text-yellow-500' : 'text-ct-primary'}>
+                {activeVoiceLabel}
+              </span>
+            </span>
+            <span className={`text-sm font-medium uppercase tracking-wider mt-1 ${statusColor[status]}`}>
               {statusLabel[status]}
             </span>
             {status === 'active' && (
@@ -233,10 +270,8 @@ export default function CallPage() {
           {/* Config link */}
           {status === 'idle' && (
             <p className="text-xs text-ct-label">
-              Prompt & RAG konfigurierbar unter{' '}
-              <a href="/config" className="text-ct-primary hover:underline">
-                /config
-              </a>
+              Voice & Prompt konfigurierbar unter{' '}
+              <a href="/config" className="text-ct-primary hover:underline">/config</a>
             </p>
           )}
         </div>
