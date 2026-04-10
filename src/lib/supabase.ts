@@ -1,0 +1,113 @@
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Types
+export type Provider = 'openai' | 'elevenlabs'
+export type SessionStatus = 'active' | 'completed' | 'error'
+export type TranscriptRole = 'agent' | 'user'
+
+export interface Session {
+  id: string
+  created_at: string
+  provider: Provider
+  system_prompt: string | null
+  rag_content: string | null
+  status: SessionStatus
+}
+
+export interface Transcript {
+  id: string
+  session_id: string
+  role: TranscriptRole
+  content: string
+  timestamp: string
+}
+
+export interface Rating {
+  id: string
+  session_id: string
+  naturalness: number
+  latency: number
+  conversation_flow: number
+  objection_handling: number
+  closing: number
+  errors: number
+  notes: string | null
+  created_at: string
+}
+
+// DB helpers
+export async function createSession(
+  provider: Provider,
+  systemPrompt: string,
+  ragContent: string
+): Promise<Session> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .insert({ provider, system_prompt: systemPrompt, rag_content: ragContent })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function updateSessionStatus(id: string, status: SessionStatus) {
+  const { error } = await supabase
+    .from('sessions')
+    .update({ status })
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+export async function addTranscript(
+  sessionId: string,
+  role: TranscriptRole,
+  content: string
+) {
+  const { error } = await supabase
+    .from('transcripts')
+    .insert({ session_id: sessionId, role, content })
+
+  if (error) throw error
+}
+
+export async function saveRating(
+  sessionId: string,
+  rating: Omit<Rating, 'id' | 'session_id' | 'created_at'>
+) {
+  const { error } = await supabase
+    .from('ratings')
+    .insert({ session_id: sessionId, ...rating })
+
+  if (error) throw error
+}
+
+export async function getSessions(): Promise<Session[]> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data
+}
+
+export async function getSessionWithDetails(id: string) {
+  const [sessionRes, transcriptsRes, ratingRes] = await Promise.all([
+    supabase.from('sessions').select('*').eq('id', id).single(),
+    supabase.from('transcripts').select('*').eq('session_id', id).order('timestamp'),
+    supabase.from('ratings').select('*').eq('session_id', id).single(),
+  ])
+
+  return {
+    session: sessionRes.data as Session | null,
+    transcripts: (transcriptsRes.data ?? []) as Transcript[],
+    rating: ratingRes.data as Rating | null,
+  }
+}
