@@ -11,6 +11,7 @@ import { DEFAULT_RAG } from '@/lib/rag-content'
 import { DEFAULT_VOICE, DEFAULT_AGENT_NAME } from '@/lib/voices'
 import { DEFAULT_MODEL } from '@/lib/models'
 import { useOpenAICall } from '@/hooks/useOpenAICall'
+import { useElevenLabsCall } from '@/hooks/useElevenLabsCall'
 
 type CallStatus = 'idle' | 'connecting' | 'active' | 'ended' | 'error'
 
@@ -36,6 +37,7 @@ export default function CallPage() {
   const [openaiVoice, setOpenaiVoice] = useState(DEFAULT_VOICE)
   const [openaiModel, setOpenaiModel] = useState(DEFAULT_MODEL)
   const [elevenlabsVoice, setElevenlabsVoice] = useState<string | null>(null)
+  const [elevenlabsAgentId, setElevenlabsAgentId] = useState<string | null>(null)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const sessionIdRef = useRef<string | null>(null)
@@ -64,6 +66,14 @@ export default function CallPage() {
     },
   })
 
+  const elevenlabsCall = useElevenLabsCall({
+    onTranscript: addTranscriptMessage,
+    onError: (msg) => {
+      setError(msg)
+      setStatus('error')
+    },
+  })
+
   // Read config from localStorage
   useEffect(() => {
     const savedPrompt      = localStorage.getItem('ct-system-prompt')
@@ -79,6 +89,8 @@ export default function CallPage() {
     const savedOpenaiModel = localStorage.getItem('ct-openai-model')
     if (savedOpenaiModel) setOpenaiModel(savedOpenaiModel)
     if (savedElVoice)     setElevenlabsVoice(savedElVoice)
+    const savedElAgentId = localStorage.getItem('ct-elevenlabs-agent-id')
+    if (savedElAgentId)   setElevenlabsAgentId(savedElAgentId)
     if (savedVariant)     setPromptVariant(savedVariant)
   }, [])
 
@@ -97,7 +109,7 @@ export default function CallPage() {
   const activeVoiceLabel =
     provider === 'openai'
       ? openaiVoice
-      : elevenlabsVoice ?? 'Folgt in Phase 4'
+      : elevenlabsVoice ?? (elevenlabsAgentId ? `Agent: ${elevenlabsAgentId.slice(0, 8)}…` : 'Nicht konfiguriert')
 
   async function handleStartCall() {
     setError(null)
@@ -166,16 +178,18 @@ export default function CallPage() {
     await openAICall.start(prompt, rag, openaiVoice, openaiModel)
   }
 
-  // ─── ElevenLabs (Phase 4) ────────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async function startElevenLabsCall(_sid: string, _prompt: string, _rag: string) {
-    // TODO: Phase 4 – ElevenLabs Integration
-    throw new Error('ElevenLabs Integration folgt in Phase 4')
+  // ─── ElevenLabs ───────────────────────────────────────────────────────────
+  async function startElevenLabsCall(_sid: string, prompt: string, _rag: string) {
+    if (!elevenlabsAgentId) {
+      throw new Error('Keine ElevenLabs Agent-ID konfiguriert. Bitte unter /config eingeben.')
+    }
+    const firstMessage = `Hallo, mein Name ist ${agentName} von CoinTracking. Wie kann ich Ihnen heute helfen?`
+    await elevenlabsCall.start(elevenlabsAgentId, prompt, firstMessage)
   }
 
   function stopActiveCall() {
     if (provider === 'openai') openAICall.stop()
-    // ElevenLabs: Phase 4
+    else elevenlabsCall.stop()
   }
 
   const statusLabel: Record<CallStatus, string> = {

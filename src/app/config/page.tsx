@@ -22,6 +22,7 @@ export default function ConfigPage() {
   const [agentName, setAgentName] = useState(DEFAULT_AGENT_NAME)
   const [openaiVoice, setOpenaiVoice] = useState(DEFAULT_VOICE)
   const [openaiModel, setOpenaiModel] = useState(DEFAULT_MODEL)
+  const [elevenlabsAgentId, setElevenlabsAgentId] = useState('')
   const [voiceTab, setVoiceTab] = useState<VoiceTab>('openai')
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -31,12 +32,14 @@ export default function ConfigPage() {
     const savedRag         = localStorage.getItem('ct-rag-content')
     const savedName        = localStorage.getItem('ct-agent-name')
     const savedOpenaiVoice = localStorage.getItem('ct-openai-voice')
-    const savedOpenaiModel = localStorage.getItem('ct-openai-model')
-    const savedVariant     = localStorage.getItem('ct-prompt-variant')
+    const savedOpenaiModel   = localStorage.getItem('ct-openai-model')
+    const savedElAgentId     = localStorage.getItem('ct-elevenlabs-agent-id')
+    const savedVariant       = localStorage.getItem('ct-prompt-variant')
     const name = savedName ?? DEFAULT_AGENT_NAME
     if (savedName)        setAgentName(savedName)
     if (savedOpenaiVoice) setOpenaiVoice(savedOpenaiVoice)
     if (savedOpenaiModel) setOpenaiModel(savedOpenaiModel)
+    if (savedElAgentId)   setElevenlabsAgentId(savedElAgentId)
     if (savedVariant)     setSelectedTemplate(savedVariant)
     if (savedRag)         setRagContent(savedRag)
     // Prompt: gespeicherte Version laden, sonst Default mit aufgelöstem Namen
@@ -68,9 +71,9 @@ export default function ConfigPage() {
       localStorage.setItem('ct-rag-content',    ragContent)
       localStorage.setItem('ct-agent-name',     agentName)
       localStorage.setItem('ct-openai-voice',   openaiVoice)
-      localStorage.setItem('ct-openai-model',   openaiModel)
-      localStorage.setItem('ct-prompt-variant', selectedTemplate)
-      // ct-elevenlabs-voice wird in Phase 4 ergänzt
+      localStorage.setItem('ct-openai-model',        openaiModel)
+      localStorage.setItem('ct-prompt-variant',      selectedTemplate)
+      localStorage.setItem('ct-elevenlabs-agent-id', elevenlabsAgentId)
       setSaveState('saved')
       setTimeout(() => setSaveState('idle'), 2000)
     } catch {
@@ -92,6 +95,8 @@ export default function ConfigPage() {
     localStorage.removeItem('ct-openai-model')
     localStorage.removeItem('ct-prompt-variant')
     localStorage.removeItem('ct-elevenlabs-voice')
+    localStorage.removeItem('ct-elevenlabs-agent-id')
+    setElevenlabsAgentId('')
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -190,15 +195,35 @@ export default function ConfigPage() {
             </div>
           )}
 
-          {/* ElevenLabs – Placeholder Phase 4 */}
+          {/* ElevenLabs Agent ID */}
           {voiceTab === 'elevenlabs' && (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-ct-border py-10 text-center">
-              <span className="text-2xl">🔜</span>
-              <p className="text-sm font-medium text-ct-secondary">Folgt in Phase 4</p>
-              <p className="text-xs text-ct-label max-w-xs">
-                ElevenLabs Voices werden in Phase 4 integriert. Die Auswahl funktioniert
-                dann über Agent-ID oder Voice-ID aus dem ElevenLabs Dashboard.
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-ct-secondary">
+                  Agent-ID
+                  <span className="ml-1 text-ct-label font-normal">
+                    (aus dem ElevenLabs Dashboard)
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={elevenlabsAgentId}
+                  onChange={(e) => setElevenlabsAgentId(e.target.value.trim())}
+                  placeholder="z.B. abc123xyz..."
+                  className="w-full rounded-lg border border-ct-border bg-white/5 px-3 py-2 text-sm text-white placeholder:text-ct-label focus:border-ct-primary focus:outline-none font-mono"
+                />
+              </div>
+              <p className="text-xs text-ct-label">
+                Die Agent-ID findest du unter{' '}
+                <span className="text-ct-secondary">ElevenLabs → Conversational AI → dein Agent → Agent ID</span>.
+                Voice, Erstantwort und weitere Einstellungen werden direkt im ElevenLabs Dashboard konfiguriert.
+                Der System-Prompt oben überschreibt den konfigurierten Prompt beim Call-Start.
               </p>
+              {elevenlabsAgentId && (
+                <p className="text-xs text-green-400">
+                  ✓ Agent-ID gesetzt: <span className="font-mono">{elevenlabsAgentId.slice(0, 12)}…</span>
+                </p>
+              )}
             </div>
           )}
         </div>
