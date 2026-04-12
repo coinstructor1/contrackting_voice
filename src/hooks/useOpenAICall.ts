@@ -3,9 +3,10 @@ import { useRef } from 'react'
 interface OpenAICallCallbacks {
   onTranscript: (role: 'agent' | 'user', content: string) => void
   onError: (message: string) => void
+  onDisconnect?: () => void
 }
 
-export function useOpenAICall({ onTranscript, onError }: OpenAICallCallbacks) {
+export function useOpenAICall({ onTranscript, onError, onDisconnect }: OpenAICallCallbacks) {
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const agentBufferRef = useRef('')
@@ -28,6 +29,13 @@ export function useOpenAICall({ onTranscript, onError }: OpenAICallCallbacks) {
     // 2. RTCPeerConnection erstellen
     const pc = new RTCPeerConnection()
     pcRef.current = pc
+
+    // Mid-Call Disconnect Detection
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+        onDisconnect?.()
+      }
+    }
 
     // 3. Audio-Output: Agent-Stimme im Browser abspielen
     const audio = document.createElement('audio')

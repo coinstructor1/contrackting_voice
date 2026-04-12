@@ -60,12 +60,22 @@ export default function CallPage() {
     []
   )
 
+  async function handleUnexpectedDisconnect() {
+    setStatus('error')
+    setError('Verbindung unterbrochen – das Transkript wurde gespeichert. Du kannst den Call neu starten.')
+    if (sessionIdRef.current) {
+      await updateSessionStatus(sessionIdRef.current, 'error').catch(console.error)
+      await updateSessionEnd(sessionIdRef.current, { callDurationSeconds: duration }).catch(console.error)
+    }
+  }
+
   const openAICall = useOpenAICall({
     onTranscript: addTranscriptMessage,
     onError: (msg) => {
       setError(msg)
       setStatus('error')
     },
+    onDisconnect: handleUnexpectedDisconnect,
   })
 
   const elevenlabsCall = useElevenLabsCall({
@@ -74,6 +84,7 @@ export default function CallPage() {
       setError(msg)
       setStatus('error')
     },
+    onDisconnect: handleUnexpectedDisconnect,
   })
 
   // Read config from localStorage
@@ -119,11 +130,25 @@ export default function CallPage() {
     setDuration(0)
     setStatus('connecting')
 
+    // Browser WebRTC Support Check
+    if (typeof RTCPeerConnection === 'undefined') {
+      setError('Dein Browser unterstützt kein WebRTC. Bitte Chrome oder Firefox verwenden.')
+      setStatus('error')
+      return
+    }
+
     // Mikrofon-Check
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true })
-    } catch {
-      setError('Mikrofon-Zugriff verweigert. Bitte erlaube den Zugriff in den Browser-Einstellungen.')
+    } catch (err) {
+      const name = err instanceof Error ? err.name : ''
+      if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setError('Kein Mikrofon gefunden. Bitte ein Audio-Eingabegerät anschließen.')
+      } else if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setError('Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben und die Seite neu laden.')
+      } else {
+        setError('Mikrofon konnte nicht gestartet werden. Bitte Gerät und Browser-Einstellungen prüfen.')
+      }
       setStatus('error')
       return
     }

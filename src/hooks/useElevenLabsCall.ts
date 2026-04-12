@@ -4,9 +4,10 @@ import { Conversation } from '@elevenlabs/client'
 interface ElevenLabsCallCallbacks {
   onTranscript: (role: 'agent' | 'user', content: string) => void
   onError: (message: string) => void
+  onDisconnect?: () => void
 }
 
-export function useElevenLabsCall({ onTranscript, onError }: ElevenLabsCallCallbacks) {
+export function useElevenLabsCall({ onTranscript, onError, onDisconnect }: ElevenLabsCallCallbacks) {
   const conversationRef = useRef<{ endSession: () => Promise<void> } | null>(null)
 
   async function start(agentId: string, systemPrompt: string, firstMessage?: string): Promise<void> {
@@ -40,6 +41,10 @@ export function useElevenLabsCall({ onTranscript, onError }: ElevenLabsCallCallb
         onError(typeof msg === 'string' ? msg : 'ElevenLabs Fehler')
       },
       onDisconnect: () => {
+        if (conversationRef.current !== null) {
+          // Nur feuern wenn nicht manuell gestoppt (stop() setzt ref auf null)
+          onDisconnect?.()
+        }
         conversationRef.current = null
       },
     })
