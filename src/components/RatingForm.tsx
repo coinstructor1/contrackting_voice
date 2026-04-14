@@ -5,6 +5,7 @@ import { saveRating, updateSessionEnd, type Outcome } from '@/lib/supabase'
 
 interface RatingFormProps {
   sessionId: string
+  emailAttempted: boolean
   onSubmitted: () => void
 }
 
@@ -20,7 +21,7 @@ const CRITERIA = [
 type RatingKey = typeof CRITERIA[number]['key']
 type Ratings = Record<RatingKey, number>
 
-export default function RatingForm({ sessionId, onSubmitted }: RatingFormProps) {
+export default function RatingForm({ sessionId, emailAttempted, onSubmitted }: RatingFormProps) {
   const [ratings, setRatings] = useState<Ratings>({
     naturalness: 3,
     latency: 3,
@@ -31,6 +32,8 @@ export default function RatingForm({ sessionId, onSubmitted }: RatingFormProps) 
   })
   const [notes, setNotes] = useState('')
   const [outcome, setOutcome] = useState<Outcome>('interested')
+  const [emailFirstTry, setEmailFirstTry] = useState<boolean | null>(null)
+  const [emailAttempts, setEmailAttempts] = useState<number>(1)
   const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.SyntheticEvent) {
@@ -38,7 +41,14 @@ export default function RatingForm({ sessionId, onSubmitted }: RatingFormProps) 
     setSaving(true)
     try {
       await Promise.all([
-        saveRating(sessionId, { ...ratings, notes: notes || null }),
+        saveRating(sessionId, {
+          ...ratings,
+          notes: notes || null,
+          email_attempted: emailAttempted,
+          email_attempts: emailAttempted && emailFirstTry !== null
+            ? (emailFirstTry ? 1 : emailAttempts)
+            : null,
+        }),
         updateSessionEnd(sessionId, { outcome }),
       ])
       onSubmitted()
@@ -68,9 +78,7 @@ export default function RatingForm({ sessionId, onSubmitted }: RatingFormProps) 
             </div>
             <input
               type="range"
-              min={1}
-              max={5}
-              step={1}
+              min={1} max={5} step={1}
               value={ratings[key]}
               onChange={(e) => setRatings((r) => ({ ...r, [key]: Number(e.target.value) }))}
               className="w-full accent-ct-primary"
@@ -81,6 +89,55 @@ export default function RatingForm({ sessionId, onSubmitted }: RatingFormProps) 
           </div>
         ))}
       </div>
+
+      {/* E-Mail Erkennung */}
+      {emailAttempted && (
+        <div className="rounded-lg border border-ct-border bg-white/5 p-4 space-y-4">
+          <p className="text-sm font-medium text-white">E-Mail Erkennung</p>
+
+          <div className="space-y-2">
+            <p className="text-xs text-ct-secondary">Hat der Agent die Adresse beim ersten Versuch korrekt erkannt?</p>
+            <div className="flex gap-3">
+              {[{ val: true, label: 'Ja, direkt richtig' }, { val: false, label: 'Nein, Korrektur nötig' }].map(({ val, label }) => (
+                <button
+                  key={String(val)}
+                  type="button"
+                  onClick={() => { setEmailFirstTry(val); if (val) setEmailAttempts(1) }}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    emailFirstTry === val
+                      ? 'border-ct-primary bg-ct-primary/10 text-white'
+                      : 'border-ct-border text-ct-secondary hover:text-white hover:border-ct-primary'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {emailFirstTry === false && (
+            <div className="space-y-2">
+              <p className="text-xs text-ct-secondary">Wie viele Versuche hat es gebraucht?</p>
+              <div className="flex gap-2">
+                {[2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setEmailAttempts(n)}
+                    className={`w-12 rounded-lg border py-2 text-sm font-semibold transition-colors ${
+                      emailAttempts === n
+                        ? 'border-ct-primary bg-ct-primary/10 text-white'
+                        : 'border-ct-border text-ct-secondary hover:text-white hover:border-ct-primary'
+                    }`}
+                  >
+                    {n === 5 ? '5+' : n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <label className="text-sm font-medium text-white">Gesprächsergebnis</label>

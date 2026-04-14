@@ -94,11 +94,29 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-function SessionCard({ session: initialSession }: { session: SessionWithDetails }) {
+function SessionCard({ session: initialSession, onDeleted }: { session: SessionWithDetails; onDeleted: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false)
   const [tab, setTab] = useState<Tab>('info')
   const [analyzing, setAnalyzing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [session, setSession] = useState(initialSession)
+
+  async function handleDelete() {
+    if (!confirm('Session wirklich löschen? (Transkript, Bewertung und Analyse werden ebenfalls gelöscht)')) return
+    setDeleting(true)
+    try {
+      await Promise.all([
+        supabase.from('transcript_analysis').delete().eq('session_id', session.id),
+        supabase.from('transcripts').delete().eq('session_id', session.id),
+        supabase.from('ratings').delete().eq('session_id', session.id),
+      ])
+      await supabase.from('sessions').delete().eq('id', session.id)
+      onDeleted(session.id)
+    } catch (err) {
+      console.error('Delete failed:', err)
+      setDeleting(false)
+    }
+  }
 
   async function handleAnalyze() {
     setAnalyzing(true)
@@ -166,17 +184,20 @@ function SessionCard({ session: initialSession }: { session: SessionWithDetails 
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {session.analysis ? (
-            <span className="text-xs text-ct-teal border border-ct-teal/30 px-2 py-0.5 rounded">Analysiert</span>
-          ) : (
-            <button
-              onClick={(e) => { e.stopPropagation(); handleAnalyze() }}
-              disabled={analyzing}
-              className="text-xs border border-ct-border px-2 py-0.5 rounded text-ct-secondary hover:text-white hover:border-ct-primary transition-colors disabled:opacity-40"
-            >
-              {analyzing ? 'Läuft...' : 'Analysieren'}
-            </button>
-          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); handleAnalyze() }}
+            disabled={analyzing || deleting}
+            className="text-xs border border-ct-border px-2 py-0.5 rounded text-ct-secondary hover:text-white hover:border-ct-primary transition-colors disabled:opacity-40"
+          >
+            {analyzing ? 'Läuft...' : session.analysis ? 'Neu analysieren' : 'Analysieren'}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDelete() }}
+            disabled={deleting || analyzing}
+            className="text-xs border border-red-900/50 px-2 py-0.5 rounded text-red-500 hover:text-red-400 hover:border-red-500 transition-colors disabled:opacity-40"
+          >
+            {deleting ? '...' : 'Löschen'}
+          </button>
           <span className="text-ct-label text-sm">{expanded ? '▲' : '▼'}</span>
         </div>
       </div>
@@ -475,7 +496,13 @@ export default function HistoryPage() {
 
       {!loading && filtered.length > 0 && (
         <div className="space-y-3 pb-8">
-          {filtered.map((s) => <SessionCard key={s.id} session={s} />)}
+          {filtered.map((s) => (
+            <SessionCard
+              key={s.id}
+              session={s}
+              onDeleted={(id) => setSessions((prev) => prev.filter((x) => x.id !== id))}
+            />
+          ))}
         </div>
       )}
     </div>

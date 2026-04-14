@@ -62,6 +62,8 @@ export interface Rating {
   closing: number
   errors: number
   notes: string | null
+  email_attempted: boolean | null
+  email_attempts: number | null
   created_at: string
 }
 
